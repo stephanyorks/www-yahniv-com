@@ -1,0 +1,8 @@
+name: www-yahniv-com
+services:
+- environment_slug: php
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: stephanyorks/www-yahniv-com
+  name: www-yahniv-com
