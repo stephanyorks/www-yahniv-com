@@ -1,0 +1,15 @@
+name: www-yahniv-com
+region: ams
+services:
+- environment_slug: php
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: stephanyorks/www-yahniv-com
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: www-yahniv-com
+  routes:
+  - path: /
+  run_command: heroku-php-apache2 public/
