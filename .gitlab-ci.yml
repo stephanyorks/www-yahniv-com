@@ -1,0 +1,90 @@
+stages:
+  - review
+  - deploy
+  - staging
+  - production
+
+review:
+  stage: review
+  script:
+    - composer install
+    - cp .env.example .env
+    - php please key:gen
+    #- php please ssg:generate
+    #- cd storage/app/static
+    - mkdir -p /srv/nginx/pages/$CI_ENVIRONMENT_SLUG
+    - rsync -a --delete . /srv/nginx/pages/$CI_ENVIRONMENT_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_NAME 
+    url: https://$CI_ENVIRONMENT_SLUG.$APPS_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+    - staging
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+    - cloudpanel
+
+stop_review:
+  stage: review
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_ENVIRONMENT_SLUG 
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_NAME 
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+    - staging
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+    - cloudpanel
+
+staging:
+  stage: staging
+  script:
+    - composer install
+    - cp .env.example .env
+    - php please key:gen
+    - php please ssg:generate
+    - cd storage/app/static
+    - mkdir -p /home/cloudpanel/htdocs/$CI_PROJECT_NAME/public
+    - rsync -a --delete . /home/cloudpanel/htdocs/$CI_PROJECT_NAME/public
+  environment:
+    name: staging
+    url: https://$CI_PROJECT_NAME.$APPS_DOMAIN
+  only:
+    - staging
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+    - cloudpanel
+
+production:
+  stage: production
+  script:
+    - composer install
+    - php please ssg:generate
+    - netlify deploy --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN --prod --message="$CI_COMMIT_MESSAGE"
+  environment:
+    name: production
+    url: https://$PRODUCTION_DOMAIN
+  only:
+    #- master 
+    - tags
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+    - cloudpanel
