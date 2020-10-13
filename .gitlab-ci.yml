@@ -1,90 +1,38 @@
-stages:
-  - review
-  - deploy
-  - staging
-  - production
+# This file is a template, and might need editing before it works on your project.
+# Jigsaw is a simple static sites generator with Laravel's Blade.
+#
+# Full project: https://github.com/tightenco/jigsaw
 
-review:
-  stage: review
-  script:
-    - composer install
-    - cp .env.example .env
-    - php please key:gen
-    #- php please ssg:generate
-    #- cd storage/app/static
-    - mkdir -p /srv/nginx/pages/$CI_ENVIRONMENT_SLUG
-    - rsync -a --delete . /srv/nginx/pages/$CI_ENVIRONMENT_SLUG
-  environment:
-    name: review/$CI_COMMIT_REF_NAME 
-    url: https://$CI_ENVIRONMENT_SLUG.$APPS_DOMAIN
-    on_stop: stop_review
-  only:
-    - branches
-  except:
-    - master
-    - staging
-  tags:
-    - nginx
-    - review-apps
-    - deploy
-    - cloudpanel
+image: php:7.2
 
-stop_review:
-  stage: review
-  script:
-    - rm -rf public /srv/nginx/pages/$CI_ENVIRONMENT_SLUG 
-  variables:
-    GIT_STRATEGY: none
-  when: manual
-  environment:
-    name: review/$CI_COMMIT_REF_NAME 
-    action: stop
-  only:
-    - branches
-  except:
-    - master
-    - staging
-  tags:
-    - nginx
-    - review-apps
-    - deploy
-    - cloudpanel
+# These folders are cached between builds
+cache:
+  paths:
+    - vendor/
+    - node_modules/
 
-staging:
-  stage: staging
-  script:
-    - composer install
-    - cp .env.example .env
-    - php please key:gen
-    - php please ssg:generate
-    - cd storage/app/static
-    - mkdir -p /home/cloudpanel/htdocs/$CI_PROJECT_NAME/public
-    - rsync -a --delete . /home/cloudpanel/htdocs/$CI_PROJECT_NAME/public
-  environment:
-    name: staging
-    url: https://$CI_PROJECT_NAME.$APPS_DOMAIN
-  only:
-    - staging
-  tags:
-    - nginx
-    - review-apps
-    - deploy
-    - cloudpanel
+before_script:
+  # Update packages
+  - apt-get update -yqq
+  # Install dependencies
+  - apt-get install -yqq gnupg zlib1g-dev libpng-dev
+  # Install Node 8
+  - curl -sL https://deb.nodesource.com/setup_8.x | bash -
+  - apt-get install -yqq nodejs
+  # Install php extensions
+  - docker-php-ext-install zip
+  # Install Composer and project dependencies
+  - curl -sS https://getcomposer.org/installer | php
+  - php composer.phar install
+  # Install Node dependencies
+  - npm install
 
-production:
-  stage: production
+pages:
   script:
-    - composer install
-    - php please ssg:generate
-    - netlify deploy --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN --prod --message="$CI_COMMIT_MESSAGE"
-  environment:
-    name: production
-    url: https://$PRODUCTION_DOMAIN
+    - npm run production
+    #- mv build_production public
+  artifacts:
+    paths:
+      - public
   only:
-    #- master 
-    - tags
-  tags:
-    - nginx
-    - review-apps
-    - deploy
-    - cloudpanel
+    - man
